@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Quota colis</title>
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Quota colis">
+<meta name="theme-color" content="#1f3864">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+:root{--bg:#f4f6fa;--card:#fff;--tx:#1b2433;--mut:#6b7686;--acc:#1f3864;--accx:#fff;--in:#fff4cf;--ok:#c8f0d4;--okt:#146c2e;--wa:#ffe9b0;--wat:#8a5a00;--bd:#dfe4ec;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10151d;--card:#1a2230;--tx:#eef2f8;--mut:#9aa7b8;--acc:#5b8def;--accx:#0b1220;--in:#3a3420;--ok:#17402a;--okt:#7be3a0;--wa:#40330f;--wat:#ffd27a;--bd:#2c3748}}
+:root[data-theme="dark"]{--bg:#10151d;--card:#1a2230;--tx:#eef2f8;--mut:#9aa7b8;--acc:#5b8def;--accx:#0b1220;--in:#3a3420;--ok:#17402a;--okt:#7be3a0;--wa:#40330f;--wat:#ffd27a;--bd:#2c3748}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 -apple-system,Helvetica,Arial,sans-serif;-webkit-text-size-adjust:100%}
+main{max-width:520px;margin:0 auto;padding:12px}
+h1{font-size:20px;margin:4px 0 10px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:12px;margin-bottom:12px}
+.nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.nav b{font-size:15px}
+button{font:inherit;color:inherit;border:1px solid var(--bd);background:var(--card);border-radius:10px;padding:10px 14px;cursor:pointer}
+.tabs{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:12px}
+.tab{padding:6px 0;text-align:center;font-size:13px;line-height:1.25}
+.tab small{display:block;color:var(--mut);font-size:11px}
+.tab.sel{background:var(--acc);color:var(--accx);border-color:var(--acc)}
+.tab.sel small{color:var(--accx)}
+.tab.ok{background:var(--ok);color:var(--okt)} .tab.wa{background:var(--wa);color:var(--wat)}
+.tab.sel.ok,.tab.sel.wa{outline:3px solid var(--acc);background:var(--acc);color:var(--accx)}
+.fm{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:10px}
+.fm button{padding:10px 2px;font-size:13px;font-weight:600;line-height:1.2}
+.fm small{display:block;font-weight:400;color:var(--mut);font-size:11px}
+.fm button.sel{background:var(--acc);color:var(--accx);border-color:var(--acc)} .fm button.sel small{color:var(--accx)}
+.row{display:flex;gap:8px}
+input{font:inherit;color:var(--tx);border:1px solid var(--bd);border-radius:10px;padding:12px;background:var(--in);width:100%}
+.add{background:var(--acc);color:var(--accx);border-color:var(--acc);font-weight:700;white-space:nowrap}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--bd);border-radius:999px;padding:4px 4px 4px 12px;font-size:14px}
+.chip button{border:0;background:none;padding:4px 8px;color:var(--mut);font-size:16px}
+.kpi{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center}
+.kpi div{background:var(--bg);border-radius:10px;padding:8px 4px}
+.kpi b{display:block;font-size:20px} .kpi span{font-size:12px;color:var(--mut)}
+.bar{height:12px;background:var(--bg);border-radius:6px;overflow:hidden;margin:10px 0 4px}
+.bar i{display:block;height:100%;background:var(--wat)} .bar.ok i{background:var(--okt)}
+table{width:100%;border-collapse:collapse;font-size:14px;margin-top:6px}
+td{padding:5px 0;border-top:1px solid var(--bd)} td:last-child{text-align:right;font-weight:600}
+h2{font-size:15px;margin:0 0 8px}
+.mut{color:var(--mut);font-size:13px}
+.st{display:inline-block;padding:3px 10px;border-radius:999px;font-weight:600;font-size:13px;background:var(--wa);color:var(--wat)} .st.ok{background:var(--ok);color:var(--okt)}
+details summary{cursor:pointer;font-weight:600}
+.set{display:grid;grid-template-columns:1fr 90px;gap:6px;align-items:center;margin-top:8px}
+</style></head>
+<body><main>
+<h1>📦 Quota colis</h1>
+<div id="app"></div>
+<div class="card"><details><summary>Réglages</summary><div id="set"></div>
+<p class="mut">Tes données restent sur ce téléphone, dans ce navigateur. Personne d’autre ne les voit.</p><div id="bk"></div></details></div>
+</main>
+<script>
+var FM=[["hyper","Hyper"],["market","Market"],["proxi","Proxi"],["carton","Carton"],["cash","Cash"]];
+var DJ=["Lun","Mar","Mer","Jeu","Ven","Sam"];
+var KEY="quota_colis_partage_v1";
+var S={set:{h:7,d:5,prime:131.59,rate:{hyper:135,market:111,proxi:85,carton:20,cash:110}},data:{}};
+var fresh=true;
+try{var raw=localStorage.getItem(KEY);if(raw){var p=JSON.parse(raw);if(p&&p.set&&p.data){S=p;fresh=false;}}}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+function iso(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+function monday(d){var x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()-((x.getDay()+6)%7));return x;}
+var today=new Date(),wk=monday(today),fmt="hyper",sel=Math.min(5,(today.getDay()+6)%7);
+function f2(x){return x.toLocaleString("fr-FR",{maximumFractionDigits:2,minimumFractionDigits:2});}
+function f0(x){return Math.round(x).toLocaleString("fr-FR");}
+function calc(k){var e=S.data[k]||[],h=0,c=0;e.forEach(function(x){h+=x.n/S.set.rate[x.f];c+=x.n;});return{h:h,c:c,e:e};}
+function setFmt(f){fmt=f;render();}
+function setDay(i){sel=i;render();}
+function nav(n){wk.setDate(wk.getDate()+7*n);render();}
+function add(){var el=document.getElementById("n"),v=parseInt(el.value,10);if(!(v>0))return;var k=cur();(S.data[k]=S.data[k]||[]).push({f:fmt,n:v});save();render();document.getElementById("n").focus();}
+function del(i){var k=cur();S.data[k].splice(i,1);save();render();}
+function cur(){var d=new Date(wk);d.setDate(d.getDate()+sel);return iso(d);}
+function render(){
+  var days=[],i;for(i=0;i<6;i++){var d=new Date(wk);d.setDate(d.getDate()+i);days.push({k:iso(d),n:d.getDate()});}
+  var H=0,worked=0,calcs=days.map(function(d){var c=calc(d.k);H+=c.h;if(c.c>0)worked++;return c;});
+  var hd=S.set.h,c=calcs[sel],pct=c.h/hd,rem=Math.max(0,hd-c.h);
+  var obj=S.set.h*S.set.d,wp=obj?H/obj:0,avg=worked?H/(worked*hd):0;
+  var lab=wk.toLocaleDateString("fr-FR",{day:"numeric",month:"short"});
+  var o='<div class="nav"><button onclick="nav(-1)">‹</button><b>Semaine du '+lab+'</b><button onclick="nav(1)">›</button></div>';
+  o+='<div class="tabs">'+days.map(function(d,j){var p=calcs[j].h/hd,cl=calcs[j].c>0?(p>=1?" ok":" wa"):"";return '<button class="tab'+(j==sel?" sel":"")+cl+'" onclick="setDay('+j+')">'+DJ[j]+'<small>'+d.n+(calcs[j].c>0?" · "+Math.round(p*100)+"%":"")+'</small></button>';}).join("")+'</div>';
+  o+='<div class="card"><h2>Ajouter une mission</h2><div class="fm">'+FM.map(function(m){return '<button class="'+(fmt==m[0]?"sel":"")+'" onclick="setFmt(\''+m[0]+'\')">'+m[1]+'<small>'+S.set.rate[m[0]]+'/h</small></button>';}).join("")+'</div>';
+  o+='<div class="row"><input id="n" type="number" inputmode="numeric" pattern="[0-9]*" placeholder="Nombre de colis" onkeydown="if(event.key===\'Enter\')add()"><button class="add" onclick="add()">Ajouter</button></div>';
+  o+='<div class="chips">'+c.e.map(function(x,j){var nm=FM.filter(function(m){return m[0]==x.f})[0][1];return '<span class="chip">'+nm+' '+x.n+'<button onclick="del('+j+')" aria-label="Supprimer">✕</button></span>';}).join("")+'</div></div>';
+  o+='<div class="card"><h2>Journée</h2><div class="kpi"><div><b>'+f0(c.c)+'</b><span>colis</span></div><div><b>'+f2(c.h)+' h</b><span>heures éq.</span></div><div><b>'+Math.round(pct*100)+' %</b><span>objectif</span></div></div>';
+  o+='<div class="bar'+(pct>=1?" ok":"")+'"><i style="width:'+Math.min(100,pct*100)+'%"></i></div>';
+  o+='<div class="mut">'+(pct>=1?"✔ Quota de la journée atteint":"Reste "+f2(rem)+" h sur "+hd+" h")+'</div>';
+  if(rem>0){o+='<table>'+FM.map(function(m){return '<tr><td>Reste en '+m[1]+'</td><td>'+f0(rem*S.set.rate[m[0]])+' colis</td></tr>';}).join("")+'</table>';}
+  o+='</div>';
+  o+='<div class="card"><h2>Semaine</h2><div class="kpi"><div><b>'+f2(H)+' h</b><span>sur '+obj+' h</span></div><div><b>'+Math.round(wp*100)+' %</b><span>objectif semaine</span></div><div><b>'+Math.round(avg*100)+' %</b><span>rendement moyen</span></div></div>';
+  o+='<div class="bar'+(wp>=1?" ok":"")+'"><i style="width:'+Math.min(100,wp*100)+'%"></i></div>';
+  o+='<table><tr><td>Jours travaillés</td><td>'+worked+'</td></tr><tr><td>Colis de la semaine</td><td>'+f0(calcs.reduce(function(a,x){return a+x.c;},0))+'</td></tr></table>';
+  if(worked>S.set.d){o+='<p class="mut">Jour supplémentaire : heures supplémentaires au-delà de '+S.set.d+' jours.</p>';}
+  o+='<p>'+(worked?'<span class="st'+(avg>=1?" ok":"")+'">'+(avg>=1?"✔ Standards atteints : prime de "+f2(S.set.prime||0)+" €":"Standards non atteints (rendement moyen "+Math.round(avg*100)+" %)")+'</span>':'')+'</p></div>';
+  document.getElementById("app").innerHTML=o;
+}
+function initSet(){
+  var h='<div class="set"><span>Heures par jour</span><input id="s_h" type="number" inputmode="decimal" value="'+S.set.h+'"><span>Jours par semaine</span><input id="s_d" type="number" inputmode="numeric" value="'+S.set.d+'"><span>Prime (€)</span><input id="s_p" type="number" inputmode="decimal" value="'+(S.set.prime||0)+'"></div>';
+  h+=FM.map(function(m){return '<div class="set"><span>'+m[1]+' (colis/h)</span><input id="r_'+m[0]+'" type="number" inputmode="numeric" value="'+S.set.rate[m[0]]+'"></div>';}).join("");
+  var el=document.getElementById("set");el.innerHTML=h;
+  el.onchange=function(){var v;v=parseFloat(document.getElementById("s_h").value);if(v>0)S.set.h=v;v=parseInt(document.getElementById("s_d").value,10);if(v>0)S.set.d=v;v=parseFloat(document.getElementById("s_p").value);if(v>=0)S.set.prime=v;
+    FM.forEach(function(m){var r=parseFloat(document.getElementById("r_"+m[0]).value);if(r>0)S.set.rate[m[0]]=r;});save();render();};
+}
+function initBk(){
+  var el=document.getElementById("bk");
+  el.innerHTML='<div class="row"><button onclick="bkOut()">Sauvegarder</button><button onclick="bkIn()">Restaurer</button></div><textarea id="bkt" rows="3" placeholder="Sauvegarde : copie ce texte et garde-le (notes, message). Pour restaurer, colle-le ici puis touche Restaurer." style="width:100%;margin-top:8px;font:12px monospace;border:1px solid var(--bd);border-radius:10px;padding:8px;background:var(--in);color:var(--tx)"></textarea>';
+}
+function bkOut(){var t=document.getElementById("bkt");t.value=JSON.stringify(S);t.select();try{navigator.clipboard.writeText(t.value);}catch(e){}}
+function bkIn(){try{var p=JSON.parse(document.getElementById("bkt").value);if(p&&p.set&&p.data){S=p;save();initSet();render();}}catch(e){}}
+initSet();initBk();render();
+if("serviceWorker" in navigator){window.addEventListener("load",function(){try{navigator.serviceWorker.register("sw.js");}catch(e){}});}
+</script></body></html>
