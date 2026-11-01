@@ -55,6 +55,11 @@ details summary{cursor:pointer;font-weight:600}
 <body><main>
 <h1>📦 Quota colis</h1>
 <div id="app"></div>
+<div class="card"><details><summary>📅 Planning de la semaine (facultatif)</summary>
+<p class="mut">Colle ton planning. L’application lit les horaires, te les montre, puis remplit les heures de chaque jour. Tu peux les modifier ensuite à tout moment dans « Heures travaillées ce jour ».</p>
+<textarea id="pt" rows="6" placeholder="Lundi : 13h00-20h30&#10;Mardi : 13h00-20h30&#10;Mercredi : REPOS" style="width:100%;font:14px -apple-system,Helvetica,Arial,sans-serif;border:1px solid var(--bd);border-radius:10px;padding:8px;background:var(--in);color:var(--tx)"></textarea>
+<div class="row" style="margin-top:8px"><button onclick="planRead()">Lire le planning</button></div>
+<div id="pv"></div></details></div>
 <div class="card"><details><summary>Réglages</summary><div id="set"></div>
 <p class="mut">Tes données restent sur ce téléphone, dans ce navigateur. Personne d’autre ne les voit.</p><div id="bk"></div></details></div>
 </main>
@@ -65,6 +70,52 @@ var KEY="quota_colis_partage_v1";
 var S={set:{h:7,d:5,prime:131.59,rate:{hyper:135,market:111,proxi:85,carton:20,cash:110}},data:{}};
 var fresh=true;
 try{var raw=localStorage.getItem(KEY);if(raw){var p=JSON.parse(raw);if(p&&p.set&&p.data){S=p;fresh=false;}}}catch(e){}
+if(!S.hrs)S.hrs={};
+function dh(k){var x=S.hrs&&S.hrs[k];return x>0?x:S.set.h;}
+function setHrs(v){var k=cur(),x=parseFloat(String(v).replace(",","."));if(x>0&&x<=24&&x!=S.set.h)S.hrs[k]=x;else delete S.hrs[k];save();render();}
+if(!S.plan)S.plan={};
+var PP=null;
+function pad(n){return String(n).padStart(2,"0");}
+function fh(m){return Math.floor(m/60)+"h"+pad(m%60);}
+function isoMonday(y,w){var j=new Date(y,0,4);j.setDate(j.getDate()-((j.getDay()+6)%7)+(w-1)*7);return j;}
+function parsePlan(txt){
+  var names=["lundi","mardi","mercredi","jeudi","vendredi","samedi","dimanche"],items=[],wn=null;
+  var mw=txt.match(/semaine\s*(?:n°|no|num[eé]ro)?\s*(\d{1,2})/i);if(mw)wn=parseInt(mw[1],10);
+  var pause=S.set.pause==null?30:S.set.pause;
+  txt.split(/\r?\n/).forEach(function(line){
+    var l=line.toLowerCase(),di=-1;
+    var ml=l.match(/^[\s\-•*·>]*(lun|mar|mer|jeu|ven|sam|dim)/);
+    if(ml)di=["lun","mar","mer","jeu","ven","sam","dim"].indexOf(ml[1]);
+    else names.forEach(function(n,i){if(di<0&&l.indexOf(n)>=0)di=i;});
+    if(di<0||di>5)return;
+    var re=/(\d{1,2})\s*[h:.]\s*(\d{0,2})\s*(?:-|–|—|→|à|au)\s*(\d{1,2})\s*[h:.]\s*(\d{0,2})/g,m,rg=[],tot=0;
+    while((m=re.exec(l))){var a=parseInt(m[1],10)*60+(parseInt(m[2],10)||0),b=parseInt(m[3],10)*60+(parseInt(m[4],10)||0);if(b<=a)b+=1440;rg.push([a,b]);tot+=b-a;}
+    if(rg.length){var net=rg.length==1?Math.max(0,tot-pause):tot;items.push({di:di,rest:false,label:rg.map(function(r){return fh(r[0])+"–"+fh(r[1]%1440);}).join(" et "),h:net/60,pauseUsed:rg.length==1&&pause>0});}
+    else if(/repos|cong[eé]|rtt|absent|\boff\b|non travaill/.test(l)){items.push({di:di,rest:true,label:"Repos",h:0});}
+    else{items.push({di:di,bad:true,raw:line.trim()});}
+  });
+  return{wn:wn,items:items};
+}
+function planRead(){
+  var r=parsePlan(document.getElementById("pt").value),pv=document.getElementById("pv");
+  if(!r.items.length){pv.innerHTML='<p class="mut">Je n’ai reconnu aucun jour avec ses horaires. Vérifie que le texte contient par exemple « Lundi : 13h00-20h30 ».</p>';PP=null;return;}
+  var mon=r.wn?isoMonday(new Date().getFullYear(),r.wn):new Date(wk);
+  var o='<p><b>Semaine du '+mon.toLocaleDateString("fr-FR",{day:"numeric",month:"long"})+'</b>'+(r.wn?' (semaine '+r.wn+')':'')+'</p><table>',ok=0;
+  r.items.forEach(function(it){var d=new Date(mon);d.setDate(d.getDate()+it.di);it.k=iso(d);var dn=DJ[it.di]+" "+d.getDate();
+    if(it.bad){o+='<tr><td>'+dn+'</td><td>⚠ non reconnu : '+it.raw.replace(/</g,"&lt;")+'</td></tr>';}
+    else{ok++;o+='<tr><td>'+dn+'</td><td>'+(it.rest?"Repos":it.label+' → '+f2(it.h)+' h'+(it.pauseUsed?' (pause '+(S.set.pause==null?30:S.set.pause)+' min déduite)':''))+'</td></tr>';}});
+  o+='</table>';
+  if(ok){o+='<div class="row" style="margin-top:8px"><button class="add" onclick="planApply()">Appliquer à cette semaine</button></div><p class="mut">La pause déduite se règle dans Réglages.</p>';PP={mon:mon,items:r.items};}else PP=null;
+  pv.innerHTML=o;
+}
+function planApply(){
+  if(!PP)return;
+  PP.items.forEach(function(it){if(it.bad)return;
+    if(it.rest){delete S.hrs[it.k];S.plan[it.k]="Repos";}
+    else{var h=Math.round(it.h*100)/100;if(Math.abs(h-S.set.h)<0.001)delete S.hrs[it.k];else S.hrs[it.k]=h;S.plan[it.k]=it.label;}});
+  save();wk=new Date(PP.mon);sel=0;var t=new Date(),m=monday(t);if(iso(m)==iso(wk))sel=Math.min(5,(t.getDay()+6)%7);
+  document.getElementById("pv").innerHTML='<p>✔ Planning appliqué à la semaine du '+wk.toLocaleDateString("fr-FR",{day:"numeric",month:"long"})+'. Les heures de chaque jour sont modifiables.</p>';PP=null;render();
+}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
 function iso(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
 function monday(d){var x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()-((x.getDay()+6)%7));return x;}
@@ -74,38 +125,45 @@ function f0(x){return Math.round(x).toLocaleString("fr-FR");}
 function calc(k){var e=S.data[k]||[],h=0,c=0;e.forEach(function(x){h+=x.n/S.set.rate[x.f];c+=x.n;});return{h:h,c:c,e:e};}
 function setFmt(f){fmt=f;render();}
 function setDay(i){sel=i;render();}
+function monthStats(k){var pre=k.slice(0,7),H=0,n=0,W=0,OT=0;Object.keys(S.data).forEach(function(d){if(d.slice(0,7)==pre){var c=calc(d);if(c.c>0){H+=c.h;n++;var h=dh(d);W+=h;OT+=Math.max(0,h-S.set.h);}}});return{H:H,n:n,W:W,OT:OT};}
 function nav(n){wk.setDate(wk.getDate()+7*n);render();}
 function add(){var el=document.getElementById("n"),v=parseInt(el.value,10);if(!(v>0))return;var k=cur();(S.data[k]=S.data[k]||[]).push({f:fmt,n:v});save();render();document.getElementById("n").focus();}
 function del(i){var k=cur();S.data[k].splice(i,1);save();render();}
 function cur(){var d=new Date(wk);d.setDate(d.getDate()+sel);return iso(d);}
 function render(){
   var days=[],i;for(i=0;i<6;i++){var d=new Date(wk);d.setDate(d.getDate()+i);days.push({k:iso(d),n:d.getDate()});}
-  var H=0,worked=0,calcs=days.map(function(d){var c=calc(d.k);H+=c.h;if(c.c>0)worked++;return c;});
-  var hd=S.set.h,c=calcs[sel],pct=c.h/hd,rem=Math.max(0,hd-c.h);
-  var obj=S.set.h*S.set.d,wp=obj?H/obj:0,avg=worked?H/(worked*hd):0;
+  var H=0,worked=0,WH=0,calcs=days.map(function(d){var c=calc(d.k);H+=c.h;if(c.c>0){worked++;WH+=dh(d.k);}return c;});
+  var hd=dh(days[sel].k),c=calcs[sel],pct=c.h/hd,rem=Math.max(0,hd-c.h);
+  var obj=S.set.h*S.set.d,wp=obj?H/obj:0,avg=WH?H/WH:0;
   var lab=wk.toLocaleDateString("fr-FR",{day:"numeric",month:"short"});
   var o='<div class="nav"><button onclick="nav(-1)">‹</button><b>Semaine du '+lab+'</b><button onclick="nav(1)">›</button></div>';
-  o+='<div class="tabs">'+days.map(function(d,j){var p=calcs[j].h/hd,cl=calcs[j].c>0?(p>=1?" ok":" wa"):"";return '<button class="tab'+(j==sel?" sel":"")+cl+'" onclick="setDay('+j+')">'+DJ[j]+'<small>'+d.n+(calcs[j].c>0?" · "+Math.round(p*100)+"%":"")+'</small></button>';}).join("")+'</div>';
+  o+='<div class="tabs">'+days.map(function(d,j){var p=calcs[j].h/dh(d.k),cl=calcs[j].c>0?(p>=1?" ok":" wa"):"";return '<button class="tab'+(j==sel?" sel":"")+cl+'" onclick="setDay('+j+')">'+DJ[j]+'<small>'+d.n+(calcs[j].c>0?" · "+Math.round(p*100)+"%":"")+'</small></button>';}).join("")+'</div>';
   o+='<div class="card"><h2>Ajouter une mission</h2><div class="fm">'+FM.map(function(m){return '<button class="'+(fmt==m[0]?"sel":"")+'" onclick="setFmt(\''+m[0]+'\')">'+m[1]+'<small>'+S.set.rate[m[0]]+'/h</small></button>';}).join("")+'</div>';
   o+='<div class="row"><input id="n" type="number" inputmode="numeric" pattern="[0-9]*" placeholder="Nombre de colis" onkeydown="if(event.key===\'Enter\')add()"><button class="add" onclick="add()">Ajouter</button></div>';
   o+='<div class="chips">'+c.e.map(function(x,j){var nm=FM.filter(function(m){return m[0]==x.f})[0][1];return '<span class="chip">'+nm+' '+x.n+'<button onclick="del('+j+')" aria-label="Supprimer">✕</button></span>';}).join("")+'</div></div>';
-  o+='<div class="card"><h2>Journée</h2><div class="kpi"><div><b>'+f0(c.c)+'</b><span>colis</span></div><div><b>'+f2(c.h)+' h</b><span>heures éq.</span></div><div><b>'+Math.round(pct*100)+' %</b><span>objectif</span></div></div>';
+  o+='<div class="card"><h2>Journée</h2><div class="set"><span>Heures travaillées ce jour</span><input id="hj" type="number" step="0.25" inputmode="decimal" value="'+hd+'" onchange="setHrs(this.value)"></div>'+(S.plan[days[sel].k]?'<div class="mut" style="margin-top:6px">Planning : '+S.plan[days[sel].k]+'</div>':'')+'<div class="kpi" style="margin-top:10px"><div><b>'+f0(c.c)+'</b><span>colis</span></div><div><b>'+f2(c.h)+' h</b><span>heures éq.</span></div><div><b>'+Math.round(pct*100)+' %</b><span>objectif</span></div></div>';
   o+='<div class="bar'+(pct>=1?" ok":"")+'"><i style="width:'+Math.min(100,pct*100)+'%"></i></div>';
-  o+='<div class="mut">'+(pct>=1?"✔ Quota de la journée atteint":"Reste "+f2(rem)+" h sur "+hd+" h")+'</div>';
+  o+='<div class="mut">'+(pct>=1?"✔ Quota de la journée atteint":"Reste "+f2(rem)+" h sur "+f2(hd)+" h")+'</div>';
   if(rem>0){o+='<table>'+FM.map(function(m){return '<tr><td>Reste en '+m[1]+'</td><td>'+f0(rem*S.set.rate[m[0]])+' colis</td></tr>';}).join("")+'</table>';}
   o+='</div>';
-  o+='<div class="card"><h2>Semaine</h2><div class="kpi"><div><b>'+f2(H)+' h</b><span>sur '+obj+' h</span></div><div><b>'+Math.round(wp*100)+' %</b><span>objectif semaine</span></div><div><b>'+Math.round(avg*100)+' %</b><span>rendement moyen</span></div></div>';
-  o+='<div class="bar'+(wp>=1?" ok":"")+'"><i style="width:'+Math.min(100,wp*100)+'%"></i></div>';
+  o+='<div class="card"><h2>Semaine</h2><div class="kpi"><div><b>'+f2(H)+' h</b><span>heures éq.</span></div><div><b>'+f2(WH)+' h</b><span>heures travaillées</span></div><div><b>'+Math.round(avg*100)+' %</b><span>rendement semaine</span></div></div>';
+  o+='<div class="bar'+(avg>=1?" ok":"")+'"><i style="width:'+Math.min(100,avg*100)+'%"></i></div>';
   o+='<table><tr><td>Jours travaillés</td><td>'+worked+'</td></tr><tr><td>Colis de la semaine</td><td>'+f0(calcs.reduce(function(a,x){return a+x.c;},0))+'</td></tr></table>';
   if(worked>S.set.d){o+='<p class="mut">Jour supplémentaire : heures supplémentaires au-delà de '+S.set.d+' jours.</p>';}
-  o+='<p>'+(worked?'<span class="st'+(avg>=1?" ok":"")+'">'+(avg>=1?"✔ Standards atteints : prime de "+f2(S.set.prime||0)+" €":"Standards non atteints (rendement moyen "+Math.round(avg*100)+" %)")+'</span>':'')+'</p></div>';
+  o+='</div>';
+  var ms=monthStats(days[sel].k),mavg=ms.W?ms.H/ms.W:0,mg=ms.H-ms.W;
+  var mn=new Date(days[sel].k+"T12:00:00").toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
+  o+='<div class="card"><h2>Mois de '+mn+'</h2><div class="kpi"><div><b>'+Math.round(mavg*100)+' %</b><span>rendement moyen</span></div><div><b>'+ms.n+'</b><span>jours travaillés</span></div><div><b>'+(mg>=0?"+":"")+f2(mg)+' h</b><span>écart à 100 %</span></div></div>';
+  o+='<p class="mut">La prime demande une moyenne de 100 % ou plus sur tous les jours travaillés du mois. Heures travaillées : '+f2(ms.W)+' h'+(ms.OT>0?' (dont '+f2(ms.OT)+' h supplémentaires)':'')+'.</p>';
+  if(ms.n){o+='<p><span class="st'+(mavg>=1?" ok":"")+'">'+(mavg>=1?"✔ Au standard pour l’instant : prime de "+f2(S.set.prime||0)+" €":"Sous le standard pour l’instant ("+Math.round(mavg*100)+" %)")+'</span></p>';}
+  o+='</div>';
   document.getElementById("app").innerHTML=o;
 }
 function initSet(){
-  var h='<div class="set"><span>Heures par jour</span><input id="s_h" type="number" inputmode="decimal" value="'+S.set.h+'"><span>Jours par semaine</span><input id="s_d" type="number" inputmode="numeric" value="'+S.set.d+'"><span>Prime (€)</span><input id="s_p" type="number" inputmode="decimal" value="'+(S.set.prime||0)+'"></div>';
+  var h='<div class="set"><span>Heures par jour</span><input id="s_h" type="number" inputmode="decimal" value="'+S.set.h+'"><span>Jours par semaine</span><input id="s_d" type="number" inputmode="numeric" value="'+S.set.d+'"><span>Pause déduite d’un planning (min)</span><input id="s_pz" type="number" inputmode="numeric" value="'+(S.set.pause==null?30:S.set.pause)+'"><span>Prime (€)</span><input id="s_p" type="number" inputmode="decimal" value="'+(S.set.prime||0)+'"></div>';
   h+=FM.map(function(m){return '<div class="set"><span>'+m[1]+' (colis/h)</span><input id="r_'+m[0]+'" type="number" inputmode="numeric" value="'+S.set.rate[m[0]]+'"></div>';}).join("");
   var el=document.getElementById("set");el.innerHTML=h;
-  el.onchange=function(){var v;v=parseFloat(document.getElementById("s_h").value);if(v>0)S.set.h=v;v=parseInt(document.getElementById("s_d").value,10);if(v>0)S.set.d=v;v=parseFloat(document.getElementById("s_p").value);if(v>=0)S.set.prime=v;
+  el.onchange=function(){var v;v=parseFloat(document.getElementById("s_h").value);if(v>0)S.set.h=v;v=parseInt(document.getElementById("s_d").value,10);if(v>0)S.set.d=v;v=parseFloat(document.getElementById("s_p").value);if(v>=0)S.set.prime=v;v=parseInt(document.getElementById("s_pz").value,10);if(v>=0)S.set.pause=v;
     FM.forEach(function(m){var r=parseFloat(document.getElementById("r_"+m[0]).value);if(r>0)S.set.rate[m[0]]=r;});save();render();};
 }
 function initBk(){
@@ -113,7 +171,7 @@ function initBk(){
   el.innerHTML='<div class="row"><button onclick="bkOut()">Sauvegarder</button><button onclick="bkIn()">Restaurer</button></div><textarea id="bkt" rows="3" placeholder="Sauvegarde : copie ce texte et garde-le (notes, message). Pour restaurer, colle-le ici puis touche Restaurer." style="width:100%;margin-top:8px;font:12px monospace;border:1px solid var(--bd);border-radius:10px;padding:8px;background:var(--in);color:var(--tx)"></textarea>';
 }
 function bkOut(){var t=document.getElementById("bkt");t.value=JSON.stringify(S);t.select();try{navigator.clipboard.writeText(t.value);}catch(e){}}
-function bkIn(){try{var p=JSON.parse(document.getElementById("bkt").value);if(p&&p.set&&p.data){S=p;save();initSet();render();}}catch(e){}}
+function bkIn(){try{var p=JSON.parse(document.getElementById("bkt").value);if(p&&p.set&&p.data){S=p;if(!S.hrs)S.hrs={};if(!S.plan)S.plan={};save();initSet();render();}}catch(e){}}
 initSet();initBk();render();
 if("serviceWorker" in navigator){window.addEventListener("load",function(){try{navigator.serviceWorker.register("sw.js");}catch(e){}});}
 </script></body></html>
