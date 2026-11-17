@@ -37,6 +37,13 @@ button{font:inherit;color:inherit;border:1px solid var(--bd);background:var(--ca
 .row{display:flex;gap:8px}
 input{font:inherit;color:var(--tx);border:1px solid var(--bd);border-radius:10px;padding:12px;background:var(--in);width:100%}
 .add{background:var(--acc);color:var(--accx);border-color:var(--acc);font-weight:700;white-space:nowrap}
+.tps{font-weight:700;white-space:nowrap}
+.dur{margin-top:8px;padding:8px 10px;border-radius:10px;background:var(--bg);font-size:15px}
+.dur:empty{display:none}
+.big{font-size:52px;font-weight:700;text-align:center;font-variant-numeric:tabular-nums;margin:6px 0 2px}
+.tmc{border:2px solid var(--acc)}
+.tmc.late .big{color:#d64545}
+.tmc.late{border-color:#d64545}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .chip{display:inline-flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--bd);border-radius:999px;padding:4px 4px 4px 12px;font-size:14px}
 .chip button{border:0;background:none;padding:4px 8px;color:var(--mut);font-size:16px}
@@ -63,7 +70,7 @@ details summary{cursor:pointer;font-weight:600}
 <div id="pv"></div></details></div>
 <div class="card"><details><summary>Réglages</summary><div id="set"></div>
 <p class="mut">Tes données restent sur ce téléphone, dans ce navigateur. Personne d’autre ne les voit.</p><div id="bk"></div></details></div>
-<p class="mut" style="text-align:center;margin:4px 0 16px">Application créée par <b>Adéniyi Aurel ODJOUSSOU</b> · © 2026<br>Lien officiel : quotafm.github.io/odjoussou · version 1.4</p>
+<p class="mut" style="text-align:center;margin:4px 0 16px">Application créée par <b>Adéniyi Aurel ODJOUSSOU</b> · ©️ 2026<br>Lien officiel : quotafm.github.io/odjoussou · version 1.6</p>
 </main>
 <script>
 var FM=[["hyper","Hyper"],["market","Market"],["proxi","Proxi"],["carton","Carton"],["cash","Cash"]];
@@ -79,6 +86,8 @@ if(!S.plan)S.plan={};
 var PP=null;
 function pad(n){return String(n).padStart(2,"0");}
 function fh(m){return Math.floor(m/60)+"h"+pad(m%60);}
+function fd(m){m=Math.max(1,Math.round(m));if(m<60)return m+" min";var h=Math.floor(m/60),r=m%60;return r?h+"h"+pad(r):h+"h";}
+function fmName(f){return FM.filter(function(m){return m[0]==f;})[0][1];}
 function isoMonday(y,w){var j=new Date(y,0,4);j.setDate(j.getDate()-((j.getDay()+6)%7)+(w-1)*7);return j;}
 function parsePlan(txt){
   var names=["lundi","mardi","mercredi","jeudi","vendredi","samedi","dimanche"],items=[],wn=null;
@@ -125,10 +134,32 @@ var today=new Date(),wk=monday(today),fmt="hyper",sel=Math.min(5,(today.getDay()
 function f2(x){return x.toLocaleString("fr-FR",{maximumFractionDigits:2,minimumFractionDigits:2});}
 function f0(x){return Math.round(x).toLocaleString("fr-FR");}
 function calc(k){var e=S.data[k]||[],h=0,c=0;e.forEach(function(x){h+=x.n/S.set.rate[x.f];c+=x.n;});return{h:h,c:c,e:e};}
-function setFmt(f){fmt=f;render();}
+function setFmt(f){var el=document.getElementById("n"),v=el?el.value:"";fmt=f;render();var e2=document.getElementById("n");if(e2&&v){e2.value=v;dur();}}
 function setDay(i){sel=i;render();}
 function monthStats(k){var pre=k.slice(0,7),H=0,n=0,W=0,OT=0;Object.keys(S.data).forEach(function(d){if(d.slice(0,7)==pre){var c=calc(d);if(c.c>0){H+=c.h;n++;var h=dh(d);W+=h;OT+=Math.max(0,h-S.set.h);}}});return{H:H,n:n,W:W,OT:OT};}
 function nav(n){wk.setDate(wk.getDate()+7*n);render();}
+function dur(){var v=parseInt(document.getElementById("n").value,10),r=document.getElementById("dr");if(!(v>0)){r.innerHTML="Entre d’abord un nombre de colis.";return;}r.innerHTML='⏱ '+f0(v)+' colis en '+fmName(fmt)+' : <b>'+fd(v/S.set.rate[fmt]*60)+'</b><div style="margin-top:8px"><button class="add" onclick="tStart()">▶ Démarrer la mission</button></div>';}
+var TK="quota_colis_timer",T=null,WL=null,AC=null;
+function tLoad(){try{var x=JSON.parse(localStorage.getItem(TK));if(x&&x.total>0){T=x;if(tLeft()<=0)T.done=true;}}catch(e){}}
+function tSave(){try{if(T)localStorage.setItem(TK,JSON.stringify(T));else localStorage.removeItem(TK);}catch(e){}}
+function tLeft(){if(!T)return 0;return T.run?Math.round((T.end-Date.now())/1000):T.left;}
+function fc(s){var n=s<0,a=Math.abs(s),h=Math.floor(a/3600),m=Math.floor(a%3600/60);return (n?"+":"")+(h?h+":"+pad(m):m)+":"+pad(a%60);}
+function tLabel(l){return l<=0?"Temps écoulé : dépassement":(T.run?"Temps restant":"En pause");}
+function tStart(){var v=parseInt(document.getElementById("n").value,10);if(!(v>0)){dur();return;}
+  if(T){document.getElementById("dr").innerHTML="Une mission est déjà en cours : arrête-la d’abord (bouton ■ Arrêter).";return;}
+  try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();AC.resume();}catch(e){}
+  var s=Math.max(1,Math.round(v/S.set.rate[fmt]*3600));T={total:s,end:Date.now()+s*1000,run:true,done:false,n:v,f:fmt};tSave();render();}
+function tPause(){if(!T)return;if(stopArm){clearTimeout(stopArm);stopArm=null;}if(T.run){T.left=tLeft();T.run=false;}else{T.end=Date.now()+T.left*1000;T.run=true;}tSave();render();}
+var stopArm=null;
+function tStop(){var b=document.getElementById("ts");
+  if(!stopArm){stopArm=setTimeout(function(){stopArm=null;var x=document.getElementById("ts");if(x)x.textContent="■ Arrêter";},4000);if(b)b.textContent="Confirmer l’arrêt ?";return;}
+  clearTimeout(stopArm);stopArm=null;T=null;tSave();render();}
+function tCard(){if(!T)return"";var l=tLeft();
+  return '<div class="card tmc'+(l<=0?" late":"")+'" id="tc"><h2>⏱ Mission en cours</h2><div class="mut">'+fmName(T.f)+' · '+f0(T.n)+' colis · prévu '+fd(T.total/60)+'</div><div class="big" id="tm">'+fc(l)+'</div><div class="mut" id="tl" style="text-align:center">'+tLabel(l)+'</div><div class="row" style="margin-top:10px"><button class="add" style="flex:1" onclick="tPause()">'+(T.run?"⏸ Pause":"▶ Reprendre")+'</button><button id="ts" style="flex:1" onclick="tStop()">■ Arrêter</button></div></div>';}
+function tPaint(){var e=document.getElementById("tm");if(!e||!T)return;var l=tLeft();e.textContent=fc(l);document.getElementById("tl").textContent=tLabel(l);document.getElementById("tc").className="card tmc"+(l<=0?" late":"");}
+function tBeep(){try{if(navigator.vibrate)navigator.vibrate([300,150,300,150,300]);AC=AC||new (window.AudioContext||window.webkitAudioContext)();var o=AC.createOscillator(),g=AC.createGain();o.connect(g);g.connect(AC.destination);o.frequency.value=880;g.gain.value=0.2;o.start();o.stop(AC.currentTime+0.6);}catch(e){}}
+function tTick(){if(!T)return;if(tLeft()<=0&&!T.done&&T.run){T.done=true;tSave();tBeep();}tPaint();}
+function wl(){try{if(T&&T.run&&navigator.wakeLock&&!WL){navigator.wakeLock.request("screen").then(function(x){WL=x;x.addEventListener("release",function(){WL=null;});}).catch(function(){});}else if((!T||!T.run)&&WL){WL.release();WL=null;}}catch(e){}}
 function add(){var el=document.getElementById("n"),v=parseInt(el.value,10);if(!(v>0))return;var k=cur();(S.data[k]=S.data[k]||[]).push({f:fmt,n:v});save();render();document.getElementById("n").focus();}
 function del(i){var k=cur();S.data[k].splice(i,1);save();render();}
 function cur(){var d=new Date(wk);d.setDate(d.getDate()+sel);return iso(d);}
@@ -140,9 +171,11 @@ function render(){
   var lab=wk.toLocaleDateString("fr-FR",{day:"numeric",month:"short"});
   var o='<div class="nav"><button onclick="nav(-1)">‹</button><b>Semaine du '+lab+'</b><button onclick="nav(1)">›</button></div>';
   o+='<div class="tabs">'+days.map(function(d,j){var p=calcs[j].h/dh(d.k),cl=calcs[j].c>0?(p>=1?" ok":" wa"):"";return '<button class="tab'+(j==sel?" sel":"")+cl+'" onclick="setDay('+j+')">'+DJ[j]+'<small>'+d.n+(calcs[j].c>0?" · "+Math.round(p*100)+"%":"")+'</small></button>';}).join("")+'</div>';
+  o+=tCard();
   o+='<div class="card"><h2>Ajouter une mission</h2><div class="fm">'+FM.map(function(m){return '<button class="'+(fmt==m[0]?"sel":"")+'" onclick="setFmt(\''+m[0]+'\')">'+m[1]+'<small>'+S.set.rate[m[0]]+'/h</small></button>';}).join("")+'</div>';
-  o+='<div class="row"><input id="n" type="number" inputmode="numeric" pattern="[0-9]*" placeholder="Nombre de colis" onkeydown="if(event.key===\'Enter\')add()"><button class="add" onclick="add()">Ajouter</button></div>';
-  o+='<div class="chips">'+c.e.map(function(x,j){var nm=FM.filter(function(m){return m[0]==x.f})[0][1];return '<span class="chip">'+nm+' '+x.n+'<button onclick="del('+j+')" aria-label="Supprimer">✕</button></span>';}).join("")+'</div></div>';
+  o+='<div class="row"><input id="n" type="number" inputmode="numeric" pattern="[0-9]*" placeholder="Nombre de colis" onkeydown="if(event.key===\'Enter\')add()"><button class="tps" onclick="dur()">⏱ Temps</button><button class="add" onclick="add()">Ajouter</button></div>';
+  o+='<div class="dur" id="dr"></div>';
+  o+='<div class="chips">'+c.e.map(function(x,j){return '<span class="chip">'+fmName(x.f)+' '+x.n+' · '+fd(x.n/S.set.rate[x.f]*60)+'<button onclick="del('+j+')" aria-label="Supprimer">✕</button></span>';}).join("")+'</div></div>';
   o+='<div class="card"><h2>Journée</h2><div class="set"><span>Heures travaillées ce jour</span><input id="hj" type="number" step="0.25" inputmode="decimal" value="'+hd+'" onchange="setHrs(this.value)"></div>'+(S.plan[days[sel].k]?'<div class="mut" style="margin-top:6px">Planning : '+S.plan[days[sel].k]+'</div>':'')+'<div class="kpi" style="margin-top:10px"><div><b>'+f0(c.c)+'</b><span>colis</span></div><div><b>'+f2(c.h)+' h</b><span>heures éq.</span></div><div><b>'+Math.round(pct*100)+' %</b><span>objectif</span></div></div>';
   o+='<div class="bar'+(pct>=1?" ok":"")+'"><i style="width:'+Math.min(100,pct*100)+'%"></i></div>';
   o+='<div class="mut">'+(pct>=1?"✔ Quota de la journée atteint":"Reste "+f2(rem)+" h sur "+f2(hd)+" h")+'</div>';
@@ -159,7 +192,7 @@ function render(){
   o+='<p class="mut">La prime demande une moyenne de 100 % ou plus sur tous les jours travaillés du mois. Heures travaillées : '+f2(ms.W)+' h'+(ms.OT>0?' (dont '+f2(ms.OT)+' h supplémentaires)':'')+'.</p>';
   if(ms.n){o+='<p><span class="st'+(mavg>=1?" ok":"")+'">'+(mavg>=1?"✔ Au standard pour l’instant : prime de "+f2(S.set.prime||0)+" €":"Sous le standard pour l’instant ("+Math.round(mavg*100)+" %)")+'</span></p>';}
   o+='</div>';
-  document.getElementById("app").innerHTML=o;
+  document.getElementById("app").innerHTML=o;wl();
 }
 function initSet(){
   var h='<div class="set"><span>Heures par jour</span><input id="s_h" type="number" inputmode="decimal" value="'+S.set.h+'"><span>Jours par semaine</span><input id="s_d" type="number" inputmode="numeric" value="'+S.set.d+'"><span>Pause déduite d’un planning (min)</span><input id="s_pz" type="number" inputmode="numeric" value="'+(S.set.pause==null?30:S.set.pause)+'"><span>Prime (€)</span><input id="s_p" type="number" inputmode="decimal" value="'+(S.set.prime||0)+'"></div>';
@@ -174,6 +207,7 @@ function initBk(){
 }
 function bkOut(){var t=document.getElementById("bkt");t.value=JSON.stringify(S);t.select();try{navigator.clipboard.writeText(t.value);}catch(e){}}
 function bkIn(){try{var p=JSON.parse(document.getElementById("bkt").value);if(p&&p.set&&p.data){S=p;if(!S.hrs)S.hrs={};if(!S.plan)S.plan={};save();initSet();render();}}catch(e){}}
-initSet();initBk();render();
+initSet();initBk();tLoad();render();setInterval(tTick,1000);
+document.addEventListener("visibilitychange",function(){if(!document.hidden){wl();tTick();}});
 if("serviceWorker" in navigator){window.addEventListener("load",function(){try{navigator.serviceWorker.register("sw.js");}catch(e){}});}
 </script></body></html>
